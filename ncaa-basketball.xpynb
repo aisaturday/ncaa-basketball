@@ -1,0 +1,414 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {
+    "_cell_guid": "1dd1f871-70b8-1f11-2216-0147a78dcb57"
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "RegularSeasonCompactResults.csv\n",
+      "RegularSeasonDetailedResults.csv\n",
+      "SampleSubmission.csv\n",
+      "Seasons.csv\n",
+      "Teams.csv\n",
+      "TourneyCompactResults.csv\n",
+      "TourneyDetailedResults.csv\n",
+      "TourneySeeds.csv\n",
+      "TourneySlots.csv\n",
+      "\n"
+     ]
+    },
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "/opt/conda/lib/python3.6/site-packages/sklearn/cross_validation.py:43: DeprecationWarning: This module was deprecated in version 0.18 in favor of the model_selection module into which all the refactored classes and functions are moved. Also note that the interface of the new CV iterators are different from that of this module. This module will be removed in 0.20.\n",
+      "  \"This module will be removed in 0.20.\", DeprecationWarning)\n",
+      "/opt/conda/lib/python3.6/site-packages/sklearn/grid_search.py:43: DeprecationWarning: This module was deprecated in version 0.18 in favor of the model_selection module into which all the refactored classes and functions are moved. This module will be removed in 0.20.\n",
+      "  DeprecationWarning)\n"
+     ]
+    }
+   ],
+   "source": [
+    "import numpy as np # linear algebra\n",
+    "import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)\n",
+    "\n",
+    "# Input data files are available in the \"../input/\" directory.\n",
+    "# For example, running this (by clicking run or pressing Shift+Enter) will list the files in the input directory\n",
+    "\n",
+    "from subprocess import check_output\n",
+    "from sklearn.preprocessing import StandardScaler\n",
+    "from sklearn.preprocessing import MinMaxScaler \n",
+    "from sklearn.preprocessing import OneHotEncoder\n",
+    "from sklearn.preprocessing import LabelEncoder\n",
+    "from sklearn.grid_search import GridSearchCV\n",
+    "print(check_output([\"ls\", \"../input\"]).decode(\"utf8\"))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {
+    "_cell_guid": "f7edea29-3fb3-e327-e93e-8ac5d6537849"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Season</th>\n",
+       "      <th>Slot</th>\n",
+       "      <th>Strongseed</th>\n",
+       "      <th>Weakseed</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1985</td>\n",
+       "      <td>R1W1</td>\n",
+       "      <td>W01</td>\n",
+       "      <td>W16</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1985</td>\n",
+       "      <td>R1W2</td>\n",
+       "      <td>W02</td>\n",
+       "      <td>W15</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>1985</td>\n",
+       "      <td>R1W3</td>\n",
+       "      <td>W03</td>\n",
+       "      <td>W14</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>1985</td>\n",
+       "      <td>R1W4</td>\n",
+       "      <td>W04</td>\n",
+       "      <td>W13</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>1985</td>\n",
+       "      <td>R1W5</td>\n",
+       "      <td>W05</td>\n",
+       "      <td>W12</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Season  Slot Strongseed Weakseed\n",
+       "0    1985  R1W1        W01      W16\n",
+       "1    1985  R1W2        W02      W15\n",
+       "2    1985  R1W3        W03      W14\n",
+       "3    1985  R1W4        W04      W13\n",
+       "4    1985  R1W5        W05      W12"
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#获取数据\n",
+    "Teams = pd.read_csv(\"../input/Teams.csv\")  #球队id和名字\n",
+    "Seasons = pd.read_csv(\"../input/Seasons.csv\")  #每个赛季wxyz 和 地域对应的关系\n",
+    "TourneySeeds = pd.read_csv(\"../input/TourneySeeds.csv\")  #每个赛季季后赛的种子队\n",
+    "TourneyDetailedResults = pd.read_csv(\"../input/TourneyDetailedResults.csv\")  #每个赛季季后赛每场比赛的具体结果\n",
+    "TourneySlots = pd.read_csv(\"../input/TourneySlots.csv\")  #每个赛季季后赛对阵情况，考虑有playin比赛\n",
+    "RegularSeasonCompactResults = pd.read_csv(\"../input/RegularSeasonCompactResults.csv\")  #每个赛季常规赛比赛结果\n",
+    "RegularSeasonDetailedResults = pd.read_csv(\"../input/RegularSeasonDetailedResults.csv\")  #每个赛季常规赛比赛详细结果\n",
+    "TourneyCompactResults = pd.read_csv(\"../input/TourneyCompactResults.csv\")  #每个赛季季后赛每场比赛的基本结果\n",
+    "\n",
+    "TourneySlots.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "metadata": {
+    "_cell_guid": "aaa47314-eb60-5214-06bf-7610dbb76412"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th>Wscore</th>\n",
+       "      <th>Numot</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>Season</th>\n",
+       "      <th>Wteam</th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th rowspan=\"5\" valign=\"top\">2017</th>\n",
+       "      <th>1460</th>\n",
+       "      <td>75.700000</td>\n",
+       "      <td>0.066667</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1461</th>\n",
+       "      <td>77.466667</td>\n",
+       "      <td>0.166667</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1462</th>\n",
+       "      <td>74.617647</td>\n",
+       "      <td>0.029412</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1463</th>\n",
+       "      <td>73.178571</td>\n",
+       "      <td>0.035714</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1464</th>\n",
+       "      <td>76.000000</td>\n",
+       "      <td>0.187500</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                 Wscore     Numot\n",
+       "Season Wteam                     \n",
+       "2017   1460   75.700000  0.066667\n",
+       "       1461   77.466667  0.166667\n",
+       "       1462   74.617647  0.029412\n",
+       "       1463   73.178571  0.035714\n",
+       "       1464   76.000000  0.187500"
+      ]
+     },
+     "execution_count": 3,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#利用整体的数据，比如球队每个赛季的胜率，球队平均每场得分，球队平均每场失分，投篮命中率，三分命中率，罚球命中率，进攻篮板，防守篮板，助攻，失误，抢断，盖帽，犯规\n",
+    "#这个主要是使用RegularSeasonDetailedResults和RegularSeasonCompactResults\n",
+    "\n",
+    "#合并赢球和输球，获取每个球队球场基础数据\n",
+    "df1=RegularSeasonDetailedResults[['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']]\n",
+    "df2=RegularSeasonDetailedResults[['Season','Lteam','Lscore','Numot','Lfgm','Lfga','Lfgm3','Lfga3','Lftm','Lfta','Lor','Ldr','Last','Lto','Lstl','Lblk','Lpf']]\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "detailavg = pds.groupby(['Season', 'Wteam'])[['Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']].mean()\n",
+    "#detailavg = RegularSeasonDetailedResults.groupby(['Season', 'Wteam']).mean()\n",
+    "detailavg.tail()\n",
+    "\n",
+    "#获取非详细的数据\n",
+    "df1=RegularSeasonCompactResults[['Season','Wteam','Wscore','Numot']]\n",
+    "df2=RegularSeasonCompactResults[['Season','Lteam','Lscore','Numot']]\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "compactavg = pds.groupby(['Season', 'Wteam'])[['Wscore','Numot']].mean()\n",
+    "#detailavg = RegularSeasonDetailedResults.groupby(['Season', 'Wteam']).mean()\n",
+    "compactavg.tail()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {
+    "_cell_guid": "cbb96497-b767-de24-82cd-08f882ef2b29"
+   },
+   "outputs": [],
+   "source": [
+    "#算出每只球队主客场数据\n",
+    "##获取每个球队主场数据\n",
+    "df1=RegularSeasonDetailedResults[RegularSeasonDetailedResults.Wloc == 'H'][['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']]\n",
+    "df2=RegularSeasonDetailedResults[['Season','Lteam','Lscore','Numot','Lfgm','Lfga','Lfgm3','Lfga3','Lftm','Lfta','Lor','Ldr','Last','Lto','Lstl','Lblk','Lpf']][RegularSeasonDetailedResults.Wloc == 'A']\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "zhudetailavg = pds.groupby(['Season', 'Wteam'])[['Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']].mean()\n",
+    "#detailavg = RegularSeasonDetailedResults.groupby(['Season', 'Wteam']).mean()\n",
+    "zhudetailavg.tail()\n",
+    "\n",
+    "df1=RegularSeasonCompactResults[RegularSeasonCompactResults.Wloc == 'H'][['Season','Wteam','Wscore','Numot']]\n",
+    "df2=RegularSeasonCompactResults[RegularSeasonCompactResults.Wloc == 'A'][['Season','Lteam','Lscore','Numot']]\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "zhucompactavg = pds.groupby(['Season', 'Wteam'])[['Wscore','Numot']].mean()\n",
+    "#detailavg = RegularSeasonDetailedResults.groupby(['Season', 'Wteam']).mean()\n",
+    "#获取每个球队客场数据\n",
+    "df1=RegularSeasonDetailedResults[['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']][RegularSeasonDetailedResults.Wloc == 'A']\n",
+    "df2=RegularSeasonDetailedResults[['Season','Lteam','Lscore','Numot','Lfgm','Lfga','Lfgm3','Lfga3','Lftm','Lfta','Lor','Ldr','Last','Lto','Lstl','Lblk','Lpf']][RegularSeasonDetailedResults.Wloc == 'H']\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "kedetailavg = pds.groupby(['Season', 'Wteam'])[['Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']].mean()\n",
+    "#detailavg = RegularSeasonDetailedResults.groupby(['Season', 'Wteam']).mean()\n",
+    "kedetailavg.tail()\n",
+    "\n",
+    "df1=RegularSeasonCompactResults[['Season','Wteam','Wscore','Numot']][RegularSeasonCompactResults.Wloc == 'A']\n",
+    "df2=RegularSeasonCompactResults[['Season','Lteam','Lscore','Numot']][RegularSeasonCompactResults.Wloc == 'H']\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "kecompactavg = pds.groupby(['Season', 'Wteam'])[['Wscore','Numot']].mean()\n",
+    "\n",
+    "#获取每个球队中立场地数据\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {
+    "_cell_guid": "a35e300b-c041-1355-79a0-c6447dd7d3af"
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "      <th>Wscore</th>\n",
+       "      <th>Numot</th>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>Season</th>\n",
+       "      <th>Wteam</th>\n",
+       "      <th>Lteam</th>\n",
+       "      <th></th>\n",
+       "      <th></th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th rowspan=\"5\" valign=\"top\">2017</th>\n",
+       "      <th rowspan=\"5\" valign=\"top\">1464</th>\n",
+       "      <th>1405</th>\n",
+       "      <td>98.0</td>\n",
+       "      <td>1.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1434</th>\n",
+       "      <td>67.0</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1453</th>\n",
+       "      <td>84.5</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1454</th>\n",
+       "      <td>86.5</td>\n",
+       "      <td>1.5</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1460</th>\n",
+       "      <td>80.5</td>\n",
+       "      <td>0.0</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                    Wscore  Numot\n",
+       "Season Wteam Lteam               \n",
+       "2017   1464  1405     98.0    1.0\n",
+       "             1434     67.0    0.0\n",
+       "             1453     84.5    0.0\n",
+       "             1454     86.5    1.5\n",
+       "             1460     80.5    0.0"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "#利用相互之间的对战数据\n",
+    "df1=RegularSeasonDetailedResults[['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf','Lteam','Lscore','Numot','Lfgm','Lfga','Lfgm3','Lfga3','Lftm','Lfta','Lor','Ldr','Last','Lto','Lstl','Lblk','Lpf']]\n",
+    "df2=RegularSeasonDetailedResults[['Season','Lteam','Lscore','Numot','Lfgm','Lfga','Lfgm3','Lfga3','Lftm','Lfta','Lor','Ldr','Last','Lto','Lstl','Lblk','Lpf','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']]\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf','Lteam','Lscore','Numot','Lfgm','Lfga','Lfgm3','Lfga3','Lftm','Lfta','Lor','Ldr','Last','Lto','Lstl','Lblk','Lpf']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "xianghudetailavg = pds.groupby(['Season','Wteam','Lteam']).mean()[['Wscore','Numot','Wfgm','Wfga','Wfgm3','Wfga3','Wftm','Wfta','Wor','Wdr','Wast','Wto','Wstl','Wblk','Wpf']]\n",
+    "xianghudetailavg.tail()\n",
+    "\n",
+    "df1=RegularSeasonCompactResults[['Season','Wteam','Wscore','Numot','Lteam','Lscore']]\n",
+    "df2=RegularSeasonCompactResults[['Season','Lteam','Lscore','Numot','Wteam','Wscore']]\n",
+    "df3 = df2\n",
+    "df3.columns = ['Season','Wteam','Wscore','Numot','Lteam','Lscore']\n",
+    "pds = df1.append(df3,ignore_index=True)\n",
+    "xianghucompactavg = pds.groupby(['Season', 'Wteam','Lteam']).mean()[['Wscore','Numot']]\n",
+    "xianghucompactavg.tail()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "metadata": {
+    "_cell_guid": "6b105a7f-dfd4-bcfa-da09-5cc318d78a79"
+   },
+   "outputs": [],
+   "source": [
+    "#利用相互之间的主客场对战数\n"
+   ]
+  }
+ ],
+ "metadata": {
+  "_change_revision": 1,
+  "_is_fork": false,
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 0
+}
